@@ -41,8 +41,16 @@ def get_support_resistance(df, window=5):
 # =========================
 
 def render_candlestick_chart(df, config):
+    y_scale = alt.Scale(
+        domain=[
+            df["low"].min() * 0.98,
+            df["high"].max() * 1.02
+        ]
+    )
+
     base = alt.Chart(df).encode(
-        x=alt.X("date:T", title="Fecha")
+        x=alt.X("date:T", title="Fecha"),
+        y=alt.Y("open:Q", scale=y_scale)
     )
 
     wicks = base.mark_rule().encode(
@@ -104,8 +112,11 @@ def render_candlestick_chart(df, config):
             .encode(x="date:T", y="high:Q")
         )
 
-    chart = alt.layer(*layers).properties(
-        height=600
+    chart = (
+        alt.layer(*layers)
+        .properties(height=600)
+        .interactive()
     )
 
     st.altair_chart(chart, use_container_width=True)
+
