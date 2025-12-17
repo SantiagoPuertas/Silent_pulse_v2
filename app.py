@@ -1,54 +1,108 @@
 import streamlit as st
 import pandas as pd
-import requests
+import altair as alt
+from pathlib import Path
 
-st.set_page_config(page_title="Silent Pulse v2", layout="wide")
+# -------------------------
+# CONFIG
+# -------------------------
+st.set_page_config(
+    page_title="Stock Dashboard",
+    layout="wide",
+)
 
-API_KEY = st.secrets["ALPHAVANTAGE_API_KEY"]
+DATA_PATH = Path("data/sp500_prices.csv")
 
-@st.cache_data(ttl=3600)
-def load_data(symbol):
-    url = "https://www.alphavantage.co/query"
-    params = {
-        "function": "TIME_SERIES_DAILY",  # 👈 FREE
-        "symbol": symbol,
-        "apikey": API_KEY,
-        "outputsize": "compact"
-    }
+# -------------------------
+# LOAD DATA
+# -------------------------
+@st.cache_data
+def load_data():
+    df = pd.read_csv(DATA_PATH, parse_dates=["date"])
+    return df.sort_values("date")
 
-    r = requests.get(url, params=params)
-    data = r.json()
+df = load_data()
 
-    # ⛔ Rate limit o error
-    if "Note" in data or "Error Message" in data:
-        return None
+# -------------------------
+# SIDEBAR
+# -------------------------
+st.sidebar.title("📊 Stock selector")
 
-    ts = data.get("Time Series (Daily)")
-    if ts is None:
-        return None
+tickers = sorted(df["ticker"].unique())
+selected_tickers = st.sidebar.multiselect(
+    "Selecciona empresas",
+    tickers,
+    default=tickers[:3]
+)
 
-    df = pd.DataFrame.from_dict(ts, orient="index", dtype=float)
-    df.index = pd.to_datetime(df.index)
-    df = df.sort_index()
+date_min = df["date"].min()
+date_max = df["date"].max()
 
-    # Usamos cierre normal (free)
-    df = df[["4. close"]].rename(columns={"4. close": symbol})
+date_range = st.sidebar.date_input(
+    "Rango de fechas",
+    value=(date_min, date_max),
+    min_value=date_min,
+    max_value=date_max
+)
 
-    return df
+# -------------------------
+# FILTER DATA
+# -------------------------
+df_filtered = df[
+    (df["ticker"].isin(selected_tickers)) &
+    (df["date"] >= pd.to_datetime(date_range[0])) &
+    (df["date"] <= pd.to_datetime(date_range[1]))
+]
 
-st.title("Silent Pulse – Market Overview")
+# -------------------------
+# HEADER
+# -------------------------
+st.title("📈 Stock Prices Dashboard")
+st.caption("Datos históricos de cotizaciones – visualización en Streamlit")
 
-with st.sidebar:
-    ticker = st.selectbox(
-        "Activo",
-        ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"]
+# -------------------------
+# METRICS
+# -------------------------
+if not df_filtered.empty:
+    cols = st.columns(len(selected_tickers))
+
+    for col, ticker in zip(cols, selected_tickers):
+        df_t = df_filtered[df_filtered["ticker"] == ticker]
+
+        first = df_t.iloc[0]["close"]
+        last = df_t.iloc[-1]["close"]
+        variation = (last / first - 1) * 100
+
+        col.metric(
+            label=ticker,
+            value=f"{last:,.2f} $",
+            delta=f"{variation:.2f} %"
+        )
+
+# -------------------------
+# LINE CHART
+# -------------------------
+st.subheader("Evolución del precio")
+
+line_chart = (
+    alt.Chart(df_filtered)
+    .mark_line(interpolate="monotone")
+    .encode(
+        x=alt.X("date:T", title="Fecha"),
+        y=alt.Y("close:Q", title="Precio de cierre ($)"),
+        color=alt.Color("ticker:N", title="Ticker"),
+        tooltip=["ticker", "date", "close"]
     )
+    .properties(height=450)
+)
 
-df = load_data(ticker)
+st.altair_chart(line_chart, use_container_width=True)
 
-if df is None or df.empty:
-    st.error("No se pudieron obtener datos (límite de API o endpoint incorrecto).")
-    st.stop()
-
-df_norm = df / df.iloc[0] * 100
-st.line_chart(df_norm)
+# -------------------------
+# DATA TABLE
+# -------------------------
+with st.expander("📄 Ver datos en tabla"):
+    st.dataframe(
+        df_filtered.sort_values(["ticker", "date"], ascending=[True, False]),
+        use_container_width=True
+    )
