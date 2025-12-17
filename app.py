@@ -1,50 +1,46 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
+import requests
 
 st.set_page_config(page_title="Silent Pulse v2", layout="wide")
 
+API_KEY = st.secrets["ALPHAVANTAGE_API_KEY"]
+
 @st.cache_data(ttl=3600)
-def load_data(tickers, period):
-    data = {}
+def load_data(symbol):
+    url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "TIME_SERIES_DAILY_ADJUSTED",
+        "symbol": symbol,
+        "apikey": API_KEY,
+        "outputsize": "compact"
+    }
+    r = requests.get(url, params=params)
+    data = r.json()
 
-    for t in tickers:
-        ticker = yf.Ticker(t)
-        df = ticker.history(period=period, auto_adjust=True)
+    ts = data.get("Time Series (Daily)")
+    if ts is None:
+        return None
 
-        if df is not None and not df.empty:
-            data[t] = df['Close']
+    df = pd.DataFrame.from_dict(ts, orient="index", dtype=float)
+    df.index = pd.to_datetime(df.index)
+    df = df.sort_index()
 
-    return pd.DataFrame(data)
+    return df[["5. adjusted close"]].rename(columns={"5. adjusted close": symbol})
 
 st.title("Silent Pulse – Market Overview")
 
-# Sidebar
 with st.sidebar:
-    tickers = st.multiselect(
-        "Selecciona acciones",
-        ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"],
-        default=["AAPL", "MSFT"]
+    ticker = st.selectbox(
+        "Activo",
+        ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA"]
     )
 
-    period = st.selectbox(
-        "Horizonte temporal",
-        ["1y", "3y", "5y", "10y"],
-        index=2
-    )
+df = load_data(ticker)
 
-if not tickers:
-    st.warning("Selecciona al menos un ticker")
+if df is None or df.empty:
+    st.error("No se pudieron obtener datos.")
     st.stop()
 
-df = load_data(tickers, period)
-
-if df.empty:
-    st.error("No se pudieron descargar datos.")
-    st.stop()
-
-# Normalización tipo demo-stockpeers
 df_norm = df / df.iloc[0] * 100
-
 st.line_chart(df_norm)
-st.write("Datos actualizados al:", df.index[-1].date())
