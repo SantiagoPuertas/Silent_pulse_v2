@@ -10,13 +10,18 @@ API_KEY = st.secrets["ALPHAVANTAGE_API_KEY"]
 def load_data(symbol):
     url = "https://www.alphavantage.co/query"
     params = {
-        "function": "TIME_SERIES_DAILY_ADJUSTED",
+        "function": "TIME_SERIES_DAILY",  # 👈 FREE
         "symbol": symbol,
         "apikey": API_KEY,
         "outputsize": "compact"
     }
+
     r = requests.get(url, params=params)
     data = r.json()
+
+    # ⛔ Rate limit o error
+    if "Note" in data or "Error Message" in data:
+        return None
 
     ts = data.get("Time Series (Daily)")
     if ts is None:
@@ -26,7 +31,10 @@ def load_data(symbol):
     df.index = pd.to_datetime(df.index)
     df = df.sort_index()
 
-    return df[["5. adjusted close"]].rename(columns={"5. adjusted close": symbol})
+    # Usamos cierre normal (free)
+    df = df[["4. close"]].rename(columns={"4. close": symbol})
+
+    return df
 
 st.title("Silent Pulse – Market Overview")
 
@@ -39,7 +47,7 @@ with st.sidebar:
 df = load_data(ticker)
 
 if df is None or df.empty:
-    st.error("No se pudieron obtener datos.")
+    st.error("No se pudieron obtener datos (límite de API o endpoint incorrecto).")
     st.stop()
 
 df_norm = df / df.iloc[0] * 100
