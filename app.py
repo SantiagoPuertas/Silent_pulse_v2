@@ -4,7 +4,7 @@ import requests
 
 st.set_page_config(page_title="Silent Pulse v2", layout="wide")
 
-API_KEY = "75XHQD8DX1SP3OV6"
+API_KEY = st.secrets["ALPHAVANTAGE_API_KEY"]
 
 @st.cache_data(ttl=3600)
 def load_data(symbol):
