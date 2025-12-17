@@ -2,8 +2,8 @@ import streamlit as st
 from src.data_loader import load_data, filter_data
 from src.sidebar import render_sidebar
 from src.metrics import render_metrics
-from src.charts import render_price_chart
 from src.tables import render_data_table
+
 
 # -------------------------
 # CONFIG
@@ -39,10 +39,6 @@ st.caption("Datos históricos de cotizaciones – visualización en Streamlit")
 # -------------------------
 render_metrics(df_filtered, selected_tickers)
 
-# -------------------------
-# CHART
-# -------------------------
-render_price_chart(df_filtered)
 
 # -------------------------
 # TABLE
