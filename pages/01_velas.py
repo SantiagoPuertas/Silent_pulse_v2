@@ -1,38 +1,64 @@
 import streamlit as st
-from src.data_loader import load_data, filter_data
-from src.charts import render_candlestick_chart
+from src.data_loader import load_data
+from src.charts import (
+    add_sma,
+    add_ema,
+    add_bollinger,
+    add_donchian,
+    render_candlestick_chart
+)
 
+
+# -------------------------
+# PAGE CONFIG
+# -------------------------
 st.set_page_config(
-    page_title="Velas por ticker",
+    page_title="Velas",
     layout="wide"
 )
 
-st.title("📊 Gráfico de velas por activo")
-st.caption("Visualización OHLC con velas japonesas")
+st.title("📊 Gráfico de velas")
 
-# Load data
+# -------------------------
+# LOAD DATA
+# -------------------------
 df = load_data()
 
-# Sidebar simple para esta página
-st.sidebar.title("Configuración")
-
-ticker = st.sidebar.selectbox(
-    "Selecciona un ticker",
+ticker = st.selectbox(
+    "Selecciona ticker",
     sorted(df["ticker"].unique())
 )
 
-date_min = df["date"].min()
-date_max = df["date"].max()
+df = df[df["ticker"] == ticker].copy()
 
-date_range = st.sidebar.date_input(
-    "Rango de fechas",
-    value=(date_min, date_max),
-    min_value=date_min,
-    max_value=date_max
-)
+# -------------------------
+# SIDEBAR - TECHNICALS
+# -------------------------
+st.sidebar.subheader("📐 Análisis técnico")
 
-# Filter
-df_filtered = filter_data(df, [ticker], date_range)
+show_sma = st.sidebar.checkbox("SMA 20")
+show_ema = st.sidebar.checkbox("EMA 20")
+show_bb = st.sidebar.checkbox("Bandas de Bollinger")
+show_donchian = st.sidebar.checkbox("Canal Donchian")
+show_sr = st.sidebar.checkbox("Soportes / Resistencias")
 
-# Chart
-render_candlestick_chart(df_filtered, ticker)
+# -------------------------
+# ADD INDICATORS
+# -------------------------
+df = add_sma(df, 20)
+df = add_ema(df, 20)
+df = add_bollinger(df, 20)
+df = add_donchian(df, 20)
+
+config = {
+    "sma": show_sma,
+    "ema": show_ema,
+    "bollinger": show_bb,
+    "donchian": show_donchian,
+    "sr": show_sr
+}
+
+# -------------------------
+# CHART
+# -------------------------
+render_candlestick_chart(df, config)
