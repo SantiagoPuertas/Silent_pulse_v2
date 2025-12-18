@@ -43,6 +43,28 @@ def get_support_resistance(df, window=5):
 def render_candlestick_chart(df, config):
     
 
+    price_min = df["low"].min()
+    price_max = df["high"].max()
+
+    base = alt.Chart(df).encode(
+        x=alt.X("date:T", title="Fecha"),
+        y=alt.Y(
+            "low:Q",
+            title="Precio",
+            scale=alt.Scale(domain=[price_min, price_max])
+        )
+    )
+
+    candles = base.mark_bar(size=6).encode(
+        y="open:Q",
+        y2="close:Q",
+        color=alt.condition(
+            "datum.open <= datum.close",
+            alt.value("#2ecc71"),
+            alt.value("#e74c3c")
+        )
+    )
+
     base = alt.Chart(df).encode(
         x=alt.X("date:T", title="Fecha"),
         y=alt.Y("low:Q",title="Precio")
@@ -53,15 +75,8 @@ def render_candlestick_chart(df, config):
         y2="high:Q"
     )
 
-    candles = base.mark_bar().encode(
-        y="open:Q",
-        y2="close:Q",
-        color=alt.condition(
-            "datum.open <= datum.close",
-            alt.value("#2ecc71"),
-            alt.value("#e74c3c")
-        )
-    )
+
+
 
     layers = [wicks, candles]
 
