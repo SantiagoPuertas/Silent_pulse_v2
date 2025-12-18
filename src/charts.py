@@ -41,16 +41,11 @@ def get_support_resistance(df, window=5):
 # =========================
 
 def render_candlestick_chart(df, config):
-    y_scale = alt.Scale(
-        domain=[
-            df["low"].min() * 0.98,
-            df["high"].max() * 1.02
-        ]
-    )
+    
 
     base = alt.Chart(df).encode(
         x=alt.X("date:T", title="Fecha"),
-        y=alt.Y("open:Q", scale=y_scale)
+        y=alt.Y("low:Q",title="Precio")
     )
 
     wicks = base.mark_rule().encode(
