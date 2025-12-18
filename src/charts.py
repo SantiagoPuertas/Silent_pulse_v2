@@ -1,47 +1,47 @@
-import altair as alt
 import streamlit as st
+import plotly.graph_objects as go
 
 
 def render_candlestick_chart(df):
     """
-    Gráfico de velas OHLC simple, limpio e interactivo.
+    Gráfico de velas interactivo con Plotly.
     Sin indicadores.
     """
 
-    # Aseguramos orden temporal
     df = df.sort_values("date")
 
-    base = alt.Chart(df).encode(
-        x=alt.X(
-            "date:T",
-            title="Fecha",
-            axis=alt.Axis(format="%Y-%m-%d", labelAngle=-45)
-        )
+    fig = go.Figure(
+        data=[
+            go.Candlestick(
+                x=df["date"],
+                open=df["open"],
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                increasing_line_color="#26a69a",
+                decreasing_line_color="#ef5350",
+                name="Precio"
+            )
+        ]
     )
 
-    # Mechas (high-low)
-    wicks = base.mark_rule().encode(
-        y=alt.Y("low:Q", title="Precio"),
-        y2="high:Q"
+    fig.update_layout(
+        height=650,
+        margin=dict(l=20, r=20, t=30, b=20),
+        xaxis_title="Fecha",
+        yaxis_title="Precio",
+        xaxis_rangeslider_visible=False,
+        template="plotly_white"
     )
 
-    # Cuerpo de las velas
-    candles = base.mark_bar(size=6).encode(
-        y="open:Q",
-        y2="close:Q",
-        color=alt.condition(
-            "datum.close >= datum.open",
-            alt.value("#26a69a"),  # verde
-            alt.value("#ef5350")   # rojo
-        )
+    fig.update_xaxes(
+        showgrid=True,
+        rangeslider_visible=False
     )
 
-    chart = (
-        alt.layer(wicks, candles)
-        .properties(
-            height=600
-        )
-        .interactive()
+    fig.update_yaxes(
+        showgrid=True,
+        fixedrange=False  # permite zoom vertical
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
